@@ -66,6 +66,10 @@ MODEL_NAME={model_name} uvicorn serve:app --port 8010 --app-dir llm_server # mod
 
 如果使用openai模型(codex)，则无需执行上述命令，只需在commaqa/models/gpt3generator.py中第180行填写`OPENAI_API_KEY`即可
 
+# Prepare BERT-style Evidence Classifier
+
+在运行整个系统之前，还需下载discriminator(链接：https://pan.baidu.com/s/10vBE58S9PbNhP1f3w6NH5g 提取码：4hrl)并解压到根目录
+
 # Run Retrieval and ODQA Systems
 
 首先，设置变量：
