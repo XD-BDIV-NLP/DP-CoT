@@ -1,13 +1,9 @@
-引用自IRCoT: [StonyBrookNLP/ircot: Repository for Interleaving Retrieval with Chain-of-Thought Reasoning for Knowledge-Intensive Multi-Step Questions, ACL23 (github.com)](https://github.com/StonyBrookNLP/ircot)
-
 # Installation
 
 ~~~bash
-```bash
 conda create -n ircot python=3.8.0 -y && conda activate ircot
 pip install -r requirements.txt
 python -m spacy download en_core_web_sm
-```
 ~~~
 
 # Prepare Data
@@ -15,9 +11,7 @@ python -m spacy download en_core_web_sm
 执行以下命令获取已处理数据：
 
 ~~~bash
-```bash
 ./download/processed_data.sh
-```
 ~~~
 
 数据会被下载到`processed_data/{dataset_name}/`
@@ -25,9 +19,7 @@ python -m spacy download en_core_web_sm
 如果您想构建elasticsearch索引并运行retriever或ODQA系统，你还需要下载`raw_data`
 
 ~~~bash
-```bash
 ./download/raw_data.sh
-```
 ~~~
 
 # Prepare Prompts
@@ -41,7 +33,6 @@ python -m spacy download en_core_web_sm
 ### Install on Linux
 
 ~~~bash
-```
 # source: https://www.elastic.co/guide/en/elasticsearch/reference/8.1/targz.html
 wget https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-7.10.2-linux-x86_64.tar.gz
 wget https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-7.10.2-linux-x86_64.tar.gz.sha512
@@ -50,23 +41,18 @@ tar -xzf elasticsearch-7.10.2-linux-x86_64.tar.gz
 cd elasticsearch-7.10.2/
 ./bin/elasticsearch # start the server
 pkill -f elasticsearch # to stop the server
-```
 ~~~
 
 在9200端口（默认）开启elasticsearch服务，并启动retriever服务器
 
 ~~~bash
-```bash
 uvicorn serve:app --port 8000 --app-dir retriever_server
-```
 ~~~
 
 接下来，对数据集的维基百科语料库进行索引。此步骤需确保`raw_data` 与 `processed_data`已下载
 
 ~~~bash
-```bash
 python retriever_server/build_index.py {dataset_name} # hotpotqa, 2wikimultihopqa
-```
 ~~~
 
 执行上述命令后可得到2个索引文件，名为 `{dataset}-wikipedia`，其数据量分别为：HotpotQA (5,233,329), 2WikiMultihopQA (430,225)
@@ -75,9 +61,7 @@ python retriever_server/build_index.py {dataset_name} # hotpotqa, 2wikimultihopq
 如果使用flan-t5-*模型，运行如下命令：
 
 ~~~bash
-```bash
 MODEL_NAME={model_name} uvicorn serve:app --port 8010 --app-dir llm_server # model_name: flan-t5-xxl, flan-t5-xl, flan-t5-large, flan-t5-base
-```
 ~~~
 
 如果使用openai模型(codex)，则无需执行上述命令，只需在commaqa/models/gpt3generator.py中第180行填写`OPENAI_API_KEY`即可
@@ -97,15 +81,12 @@ MODEL_NAME={model_name} uvicorn serve:app --port 8010 --app-dir llm_server # mod
 最终，通过如下命令运行系统：
 
 ~~~bash
-```bash
 ./reproduce.sh $SYSTEM $MODEL $DATASET
-```
 ~~~
 
 如果您希望拥有更多的控制权，也可以按以下步骤逐步运行：
 
 ~~~bash
-```bash
 # Instantiate experiment configs with different HPs and write them in files.
 python runner.py $SYSTEM $MODEL $DATASET write --prompt_set 1
 python runner.py $SYSTEM $MODEL $DATASET write --prompt_set 2
@@ -140,5 +121,4 @@ python runner.py $SYSTEM $MODEL $DATASET summarize --prompt_set 2 --best --eval_
 python runner.py $SYSTEM $MODEL $DATASET summarize --prompt_set 3 --best --eval_test --official
 python runner.py $SYSTEM $MODEL $DATASET summarize --prompt_set aggregate --best --eval_test --official
 ## The mean and std in the final command is what we reported in the paper.
-```
 ~~~
