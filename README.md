@@ -1,38 +1,40 @@
 # Installation
 
-~~~bash
+```bash
 conda create -n ircot python=3.8.0 -y && conda activate ircot
 pip install -r requirements.txt
 python -m spacy download en_core_web_sm
-~~~
+```
 
 # Prepare Data
 
-执行以下命令获取已处理数据：
+You can download all our processed data by running
 
-~~~bash
+```bash
 ./download/processed_data.sh
-~~~
+```
 
-数据会被下载到`processed_data/{dataset_name}/`
+The data will be downloaded in `processed_data/{dataset_name}/`. 
 
-如果您想构建elasticsearch索引并运行retriever或ODQA系统，你还需要下载`raw_data`
+You'll also need `raw_data` if you want to build elasticsearch indices and run retriever or odqa systems.
 
-~~~bash
+```bash
 ./download/raw_data.sh
-~~~
+```
+
+The data will be downloaded in `raw_data/{dataset_name}/`.
 
 # Prepare Prompts
 
-所有可用的prompts都在`prompts/`目录中
+All our prompts are available in `prompts/` directory. 
 
 # Prepare Retriever and LLM Servers
 
-首先，安装Elasticsearch 7.10
+First, install Elasticsearch 7.10.
 
 ### Install on Linux
 
-~~~bash
+```bash
 # source: https://www.elastic.co/guide/en/elasticsearch/reference/8.1/targz.html
 wget https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-7.10.2-linux-x86_64.tar.gz
 wget https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-7.10.2-linux-x86_64.tar.gz.sha512
@@ -41,88 +43,100 @@ tar -xzf elasticsearch-7.10.2-linux-x86_64.tar.gz
 cd elasticsearch-7.10.2/
 ./bin/elasticsearch # start the server
 pkill -f elasticsearch # to stop the server
-~~~
+```
 
-在9200端口（默认）开启elasticsearch服务，并启动retriever服务器
+Start the elasticsearch server on port 9200 (default), and then start the retriever server as shown here.
 
-~~~bash
+```bash
 uvicorn serve:app --port 8000 --app-dir retriever_server
-~~~
+```
 
-接下来，对数据集的维基百科语料库进行索引。此步骤需确保`raw_data` 与 `processed_data`已下载
+Next, index the wikipedia corpuses for the datasets. Make sure you've downloaded `raw_data` and `processed_data`.
 
-~~~bash
+```bash
 python retriever_server/build_index.py {dataset_name} # hotpotqa, 2wikimultihopqa
-~~~
+```
 
-执行上述命令后可得到2个索引文件，名为 `{dataset}-wikipedia`，其数据量分别为：HotpotQA (5,233,329), 2WikiMultihopQA (430,225)
+After indexing you can check the number of documents in each index by running `curl localhost:9200/_cat/indices`. You should have 2 indices, one for each dataset, called `{dataset}-wikipedia`. Make sure they match up to the statistics given in the paper. You should expect to see the following sizes: HotpotQA (5,233,329), 2WikiMultihopQA (430,225).
 
-最后，启动LLM服务器：
-如果使用flan-t5-*模型，运行如下命令：
+Next, if you want to use flan-t5-* models, start the llm_server by running:
 
-~~~bash
+```bash
 MODEL_NAME={model_name} uvicorn serve:app --port 8010 --app-dir llm_server # model_name: flan-t5-xxl, flan-t5-xl, flan-t5-large, flan-t5-base
-~~~
+```
 
-如果使用openai模型(codex)，则无需执行上述命令，只需在commaqa/models/gpt3generator.py中第180行填写`OPENAI_API_KEY`即可
+If you want to use openai models (e.g., codex in our experiments), you don't need to start it. In that case, you just need to set the environment variable `OPENAI_API_KEY`.
 
 # Prepare BERT-style Evidence Classifier
 
-在运行整个系统之前，还需下载discriminator(链接：https://pan.baidu.com/s/10vBE58S9PbNhP1f3w6NH5g 提取码：4hrl)并解压到根目录
+Before running the entire system, you also need to download the classifier model file (link: https://pan.baidu.com/s/10vBE58S9PbNhP1f3w6NH5g, extracted code: 4hrl) and extract it to the root directory.
 
 # Run Retrieval and ODQA Systems
 
-首先，设置变量：
+First, set the variables:
 
-```bash
 - SYSTEM: choose from (`ircot`, `ircot_qa`, `oner`, `oner_qa`, `nor_qa`)
 - MODEL: choose from (`codex`, `flan-t5-xxl`, `flan-t5-xl`, `flan-t5-large`, `flan-t5-base`, `none`)
 - DATASET: choose from (`hotpotqa`, `2wikimultihopqa`, `musique`, `iirc`)
+
+The systems ending with `_qa` are for ODQA and others are for retrieval.
+
+Now you can run the system using (language) model and dataset of your choice by running:
+
+```bash
+./reproduce.sh $SYSTEM $MODEL $DATASET
 ```
 
-以`_qa`结尾的系统用于ODQA，其他系统用于检索
+If you prefer to have more control, you can also run it step-by-step as follows:
 
-最终，通过如下命令运行系统：
-
-~~~bash
-./reproduce.sh $SYSTEM $MODEL $DATASET
-~~~
-
-如果您希望拥有更多的控制权，也可以按以下步骤逐步运行：
-
-~~~bash
+```bash
 # Instantiate experiment configs with different HPs and write them in files.
+
 python runner.py $SYSTEM $MODEL $DATASET write --prompt_set 1
 python runner.py $SYSTEM $MODEL $DATASET write --prompt_set 2
 python runner.py $SYSTEM $MODEL $DATASET write --prompt_set 3
+
 ## if you make a change to base_configs, the above steps need to be rerun to
+
 ## regenerate instantiated experiment configs (with HPs populated)
 
 # Run experiments for different HPs on dev set
+
 python runner.py $SYSTEM $MODEL $DATASET predict --prompt_set 1
+
 ## predict command runs evaluation at the end by default. If you want to run evaluation
+
 ## separately after prediction, you can replace predict with evaluate here.
 
 # Show results for experiments with different HPs
+
 python runner.py $SYSTEM $MODEL $DATASET summarize --prompt_set 1
+
 ## Not necessary as such, it'll just show you the results using different HPs in a nice table.
 
 # Pick the best HP and save the config with that HP.
+
 python runner.py $SYSTEM $MODEL $DATASET write --prompt_set 1 --best
 python runner.py $SYSTEM $MODEL $DATASET write --prompt_set 2 --best
 python runner.py $SYSTEM $MODEL $DATASET write --prompt_set 3 --best
 
 # Run the experiment with best HP on test set
+
 python runner.py $SYSTEM $MODEL $DATASET predict --prompt_set 1 --best --eval_test --official
 python runner.py $SYSTEM $MODEL $DATASET predict --prompt_set 2 --best --eval_test --official
 python runner.py $SYSTEM $MODEL $DATASET predict --prompt_set 3 --best --eval_test --official
+
 ## predict command runs evaluation at the end by default. If you want to run evaluation
+
 ## separately after prediction, you can replace predict with evaluate here.
 
 # Summarize best test results for individual prompts and aggregate (mean +- std) of them)
+
 python runner.py $SYSTEM $MODEL $DATASET summarize --prompt_set 1 --best --eval_test --official
 python runner.py $SYSTEM $MODEL $DATASET summarize --prompt_set 2 --best --eval_test --official
 python runner.py $SYSTEM $MODEL $DATASET summarize --prompt_set 3 --best --eval_test --official
 python runner.py $SYSTEM $MODEL $DATASET summarize --prompt_set aggregate --best --eval_test --official
+
 ## The mean and std in the final command is what we reported in the paper.
-~~~
+```
+
